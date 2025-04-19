@@ -426,3 +426,42 @@ def format(request, tool):
             return JsonResponse({"error": str(e)}, status=500)
     logger.error("Invalid format request")
     return JsonResponse({"error": "Invalid request"}, status=400)
+
+@csrf_exempt
+def compressor(request, tool):
+    if request.method == "POST" and request.FILES.get("image"):
+        try:
+            processor = ImageProcessor(request.FILES["image"])
+            if tool == "compress-image":
+                format = request.POST.get("format", "JPEG").upper()
+                if format not in ["JPEG", "PNG", "WEBP"]:
+                    return JsonResponse({"error": "Invalid format"}, status=400)
+                quality = int(request.POST.get("quality", 80))
+                compression = int(request.POST.get("compression", 6))
+                target_size = int(request.POST.get("target_size", 100))
+                lossless = request.POST.get("lossless", "false") == "true"
+                progressive = request.POST.get("progressive", "false") == "true"
+                strip_metadata = request.POST.get("strip_metadata", "false") == "true"
+                quantization = request.POST.get("quantization", "standard")
+                
+                processed = processor.compress_image(
+                    target_size_kb=target_size,
+                    format=format,
+                    quality=quality,
+                    compression=compression,
+                    lossless=lossless,
+                    progressive=progressive,
+                    strip_metadata=strip_metadata,
+                    quantization=quantization
+                )
+                logger.info("Image compressed: %s", format)
+                return HttpResponse(processed, content_type=f"image/{format.lower()}")
+            return JsonResponse({"error": "Invalid tool"}, status=400)
+        except Exception as e:
+            logger.error("Compressor tool error: %s", str(e))
+            return JsonResponse({"error": str(e)}, status=500)
+    logger.error("Invalid compressor request")
+    return JsonResponse({"error": "Invalid request"}, status=400)
+
+def compressor_page(request):
+    return render(request, "compressor.html")

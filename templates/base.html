@@ -204,6 +204,7 @@
                 <a href="{% url 'studio' %}" {% if request.resolver_match.url_name == 'studio' %}class="active"{% endif %} data-tooltip="Edit Images">STUDIO</a>
                 <a href="{% url 'remove_background' %}" {% if request.resolver_match.url_name == 'remove_background' %}class="active"{% endif %} data-tooltip="Remove Background">REMOVER</a>
                 <a href="{% url 'converter' %}" {% if request.resolver_match.url_name == 'converter' %}class="active"{% endif %} data-tooltip="Convert Images">CONVERTER</a>
+                <a href="{% url 'compressor' %}" {% if request.resolver_match.url_name == 'compressor' %}class="active"{% endif %} data-tooltip="Compress Images">COMPRESSOR</a>
             </nav>
             <button class="hamburger" aria-label="Toggle mobile menu">☰</button>
             <nav class="mobile-nav" aria-label="Mobile navigation">
@@ -212,6 +213,7 @@
                 <a href="{% url 'studio' %}" {% if request.resolver_match.url_name == 'studio' %}class="active"{% endif %}>STUDIO</a>
                 <a href="{% url 'remove_background' %}" {% if request.resolver_match.url_name == 'remove_background' %}class="active"{% endif %}>REMOVER</a>
                 <a href="{% url 'converter' %}" {% if request.resolver_match.url_name == 'converter' %}class="active"{% endif %}>CONVERTER</a>
+                <a href="{% url 'compressor' %}" {% if request.resolver_match.url_name == 'compressor' %}class="active"{% endif %}>COMPRESSOR</a>
             </nav>
         </div>
     </header>

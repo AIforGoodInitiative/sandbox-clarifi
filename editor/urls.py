@@ -18,4 +18,6 @@ urlpatterns = [
     path("layers/<str:tool>", views.layers, name="layers"),
     path("palette/<str:tool>", views.palette, name="palette"),
     path("format/<str:tool>", views.format, name="format"),
+    path("compressor", views.compressor_page, name="compressor"),
+    path("compressor/<str:tool>", views.compressor, name="compressor_tool"),
 ]

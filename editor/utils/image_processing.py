@@ -13,7 +13,7 @@ class ImageProcessor:
         """Initialize with an uploaded image file."""
         self.image = Image.open(image_file).convert("RGB")
         self.cv_image = cv2.cvtColor(np.array(self.image), cv2.COLOR_RGB2BGR)
-        self.layers = [self.image.copy()]  # Single active layer unless modified
+        self.layers = [self.image.copy()]  
 
     def save_image(self, format="JPEG"):
         """Save the processed image to a BytesIO buffer."""
@@ -145,7 +145,7 @@ class ImageProcessor:
         except:
             raise ValueError("Invalid color format")
         draw = ImageDraw.Draw(self.image)
-        font = ImageFont.load_default()  # Fallback to default font
+        font = ImageFont.load_default()  
         try:
             font = ImageFont.truetype("arial.ttf", font_size)
         except:
@@ -220,11 +220,10 @@ class ImageProcessor:
         mask = np.zeros((height, width), np.uint8)
         bgd_model = np.zeros((1, 65), np.float64)
         fgd_model = np.zeros((1, 65), np.float64)
-        rect = (50, 50, width - 100, height - 100)  # Initial rectangle
+        rect = (50, 50, width - 100, height - 100)  
         cv2.grabCut(self.cv_image, mask, rect, bgd_model, fgd_model, 5, cv2.GC_INIT_WITH_RECT)
         mask2 = np.where((mask == 2) | (mask == 0), 0, 1).astype('uint8')
         self.cv_image = self.cv_image * mask2[:, :, np.newaxis]
-        # Convert to RGBA for transparency
         rgba = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2RGB)
         alpha = mask2 * 255
         rgba = np.dstack((rgba, alpha))
@@ -270,7 +269,6 @@ class ImageProcessor:
         try:
             self.cv_image = cv2.xphoto.oilPainting(self.cv_image, size=7, dynRatio=1)
         except:
-            # Fallback if xphoto module is unavailable
             self.cv_image = cv2.stylization(self.cv_image, sigma_s=60, sigma_r=0.6)
         self.image = Image.fromarray(cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2RGB))
         self.layers[-1] = self.image.copy()
@@ -441,7 +439,7 @@ class ImageProcessor:
         else:
             img = img.convert("RGB")
         if strip:
-            img.info = {}  # Strip EXIF
+            img.info = {}  
         output = io.BytesIO()
         save_params = {}
         if format in ["jpeg", "webp"]:
@@ -458,25 +456,88 @@ class ImageProcessor:
         output.seek(0)
         return output.getvalue()
 
-    def compress_image(self, target_size_kb, format="JPEG"):
-        """Compress image to target size in KB."""
+    def compress_image(self, target_size_kb, format="JPEG", quality=80, compression=6, lossless=False, progressive=False, strip_metadata=False, quantization="standard"):
+        """Compress image with advanced options."""
         if target_size_kb <= 0:
             raise ValueError("Target size must be positive")
-        quality = 90
+        if format not in ["JPEG", "PNG", "WEBP"]:
+            raise ValueError("Unsupported format for compression")
+        if not 1 <= quality <= 100:
+            raise ValueError("Quality must be between 1 and 100")
+        if not 0 <= compression <= 9:
+            raise ValueError("Compression must be between 0 and 9")
+        if quantization not in ["standard", "high", "low"]:
+            raise ValueError("Invalid quantization mode")
+
+        img = self.image
         output = io.BytesIO()
-        while quality > 10:
+        save_params = {}
+
+        quality_adjust = {"standard": 0, "high": 10, "low": -10}
+        adjusted_quality = min(max(quality + quality_adjust[quantization], 1), 100)
+
+        if format == "JPEG":
+            save_params["quality"] = adjusted_quality
+            save_params["progressive"] = progressive
+            save_params["optimize"] = True
+        elif format == "PNG":
+            save_params["compress_level"] = compression
+            save_params["optimize"] = True
+        elif format == "WEBP":
+            save_params["quality"] = adjusted_quality if not lossless else 100
+            save_params["lossless"] = lossless
+            save_params["method"] = 6  
+
+        if strip_metadata:
+            img.info = {}
+
+        current_quality = adjusted_quality
+        while current_quality >= 10:
             output.seek(0)
             output.truncate(0)
-            self.image.save(output, format=format.upper(), quality=quality)
-            size_kb = output.getbuffer().nbytes / 1024
-            if size_kb <= target_size_kb:
-                break
-            quality -= 5
+            try:
+                img.save(output, format=format, **save_params)
+                size_kb = output.getbuffer().nbytes / 1024
+                if size_kb <= target_size_kb or format == "PNG" or lossless:
+                    break
+                current_quality -= 5
+                save_params["quality"] = current_quality
+            except Exception as e:
+                raise ValueError(f"Compression failed: {str(e)}")
+
         output.seek(0)
         self.image = Image.open(output).convert("RGB")
         self.cv_image = cv2.cvtColor(np.array(self.image), cv2.COLOR_RGB2BGR)
         self.layers[-1] = self.image.copy()
         return output.getvalue()
+
+    def get_compressed_size(self, format="JPEG", quality=80, compression=6, lossless=False, progressive=False, strip_metadata=False, quantization="standard"):
+        """Estimate compressed file size without modifying the image."""
+        img = self.image.copy()
+        output = io.BytesIO()
+        save_params = {}
+
+        quality_adjust = {"standard": 0, "high": 10, "low": -10}
+        adjusted_quality = min(max(quality + quality_adjust[quantization], 1), 100)
+
+        if format == "JPEG":
+            save_params["quality"] = adjusted_quality
+            save_params["progressive"] = progressive
+            save_params["optimize"] = True
+        elif format == "PNG":
+            save_params["compress_level"] = compression
+            save_params["optimize"] = True
+        elif format == "WEBP":
+            save_params["quality"] = adjusted_quality if not lossless else 100
+            save_params["lossless"] = lossless
+            save_params["method"] = 6
+
+        if strip_metadata:
+            img.info = {}
+
+        img.save(output, format=format, **save_params)
+        size_kb = output.getbuffer().nbytes / 1024
+        return size_kb
 
     def remove_red_eye(self):
         """Detect and remove red-eye effect."""
